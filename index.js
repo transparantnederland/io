@@ -51,6 +51,12 @@ function send409(res, type, id) {
   });
 }
 
+app.use("*", function(req,res,next) {
+  console.log("query: " + req.originalUrl);
+  next();
+});
+
+
 app.get('/datasets', function(req, res) {
   db.getDatasets(res, function(data) {
     res.send(data);
@@ -144,7 +150,6 @@ app.get('/datasets/:dataset/:file(pits|relations)',
     fs.exists(filename, function(exists) {
       if (exists) {
         var stat = fs.statSync(filename);
-
         res.writeHead(200, {
           'Content-Type': 'text/plain',
           'Content-Length': stat.size
@@ -155,8 +160,35 @@ app.get('/datasets/:dataset/:file(pits|relations)',
       }
     });
   }
-
 );
+
+function addRelationToCorrections(r, type) {
+  var jsonValid = validators['relations'](r); 
+  if(jsonValid) {
+    console.log(JSON.stringify(r))
+    return false
+  }
+  return true
+}
+
+app.put('/datasets/corrections/:type(pits|relations)',
+  auth.owner,
+  function(req, res) {
+    var content = req.body;
+    if(Object.prototype.toString.call(req.body) === "[object Array]") {
+      content.forEach(function(e){
+        addRelationToCorrections(e,req.params.type)
+      });
+    } else {
+      addRelationToCorrections(content,req.params.type)
+    }
+    send201(res)
+  }
+).on('error', function(e) {
+  // Call callback function with the error object which comes from the request
+  console.error(e);
+});
+
 
 app.put('/datasets/:dataset/:file(pits|relations)',
   db.datasetExists,
@@ -174,7 +206,6 @@ app.put('/datasets/:dataset/:file(pits|relations)',
     var random = Math.random().toString();
 
     var uploadedFilename = path.join(config.api.dataDir, 'uploads', crypto.createHash('sha1').update(currentDate + random).digest('hex') + '.ndjson');
-
     var busboy;
     try {
       busboy = new Busboy({
@@ -231,7 +262,7 @@ app.put('/datasets/:dataset/:file(pits|relations)',
       } else {
         contents = req.body;
       }
-
+      
       fs.writeFile(uploadedFilename, contents, function(err) {
         if (err) {
           res.status(409).send({
@@ -243,9 +274,7 @@ app.put('/datasets/:dataset/:file(pits|relations)',
       });
     }
   }
-
-)
-.on('error', function(e) {
+).on('error', function(e) {
   // Call callback function with the error object which comes from the request
   console.error(e);
 });
