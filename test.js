@@ -1,6 +1,6 @@
 var express = require('express');
 var app = express();
-var config = require('tnl-config');
+var config = require('histograph-config');
 var io = require('./index');
 
 app.use('/', io);
