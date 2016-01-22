@@ -9,11 +9,12 @@ var basicAuth = require('basic-auth');
 var app = express();
 var diff = require('./lib/diff');
 var auth = require('./lib/auth');
+var queue = require('./lib/queue');
 var db = require('./lib/db');
 var current = require('./lib/current');
 var validators = require('./lib/validators');
 var uploadedFile = require('./lib/uploaded-file');
-var config = require('tnl-config');
+var config = require('histograph-config');
 
 var maxRealTimeCheckFileSize = 500000000;
 
@@ -43,6 +44,10 @@ function send404(res, type, id) {
   res.status(404).send({
     message: type + ' \'' + id + '\' not found'
   });
+}
+
+function send406(res, error) {
+  res.status(406).send(error);
 }
 
 function send409(res, type, id) {
@@ -130,7 +135,6 @@ app.delete('/datasets/:dataset',
       });
     });
   }
-
 );
 
 app.get('/datasets/:dataset', function(req, res) {
@@ -162,25 +166,56 @@ app.get('/datasets/:dataset/:file(pits|relations)',
   }
 );
 
-function addRelationToCorrections(r, type) {
-  var jsonValid = validators['relations'](r); 
-  if(jsonValid) {
-    console.log(JSON.stringify(r))
-    return false
+function addCorrection(r, type, res) {
+  if(type === 'relations') {
+    if(validators[type](r)) {
+      var rel = {dataset: "z_corrections_", type: "relations", action: "add", data: r };
+      queue.add(x, function doneCallback(qsize) {
+        console.log(JSON.stringify(rel))
+      });
+    } else {
+      send406(res, validators[type].errors);
+      return true;
+    }
+
+  } else {
+
+    var newPit = r._correction_id
+    var oldPit = r.id
+    delete r._correction_id
+    r.id = newPit;
+
+    if(validators[type](r)) {
+      var pit = {dataset: "z_corrections_", type: "pits", action: "add", data: r };
+      var rel = {dataset: "z_corrections_", type: "relations", action: "add", data: {type: "tnl:same", from: oldPit, to: r.id } };
+
+      queue.add(pit, function doneCallback(qsize) {
+        console.log(JSON.stringify(pit))
+      });
+      queue.add(rel, function doneCallback(qsize) {
+        console.log(JSON.stringify(rel))
+      });
+
+    } else {
+      send406(res, validators[type].errors);
+      return true;
+    }
   }
-  return true
+  return false;
 }
 
-app.put('/datasets/corrections/:type(pits|relations)',
+app.put('/datasets/corrections/:file(pits|relations)',
   auth.owner,
   function(req, res) {
     var content = req.body;
     if(Object.prototype.toString.call(req.body) === "[object Array]") {
       content.forEach(function(e){
-        addRelationToCorrections(e,req.params.type)
+        if( addCorrection(e,req.params.file, res) )
+          return;
       });
     } else {
-      addRelationToCorrections(content,req.params.type)
+      if( addCorrection(content,req.params.file,res) )
+        return;
     }
     send201(res)
   }
