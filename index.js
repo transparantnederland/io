@@ -15,6 +15,7 @@ var current = require('./lib/current');
 var validators = require('./lib/validators');
 var uploadedFile = require('./lib/uploaded-file');
 var config = require('histograph-config');
+var ds_correct = config.api.ds_corrections || 'z_corrections_';
 
 var maxRealTimeCheckFileSize = 500000000;
 
@@ -169,7 +170,7 @@ app.get('/datasets/:dataset/:file(pits|relations)',
 function addCorrection(r, type, res) {
   if(type === 'relations') {
     if(validators[type](r)) {
-      var rel = {dataset: "z_corrections_", type: "relations", action: "add", data: r };
+      var rel = {dataset: ds_correct, type: "relations", action: "add", data: r };
       queue.add(x, function doneCallback(qsize) {
         console.log(JSON.stringify(rel))
       });
@@ -186,8 +187,8 @@ function addCorrection(r, type, res) {
     r.id = newPit;
 
     if(validators[type](r)) {
-      var pit = {dataset: "z_corrections_", type: "pits", action: "add", data: r };
-      var rel = {dataset: "z_corrections_", type: "relations", action: "add", data: {type: "tnl:same", from: oldPit, to: r.id } };
+      var pit = {dataset: ds_correct, type: "pits", action: "add", data: r };
+      var rel = {dataset: ds_correct, type: "relations", action: "add", data: {type: "tnl:same", from: oldPit, to: r.id } };
 
       queue.add(pit, function doneCallback(qsize) {
         console.log(JSON.stringify(pit))
