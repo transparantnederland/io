@@ -171,7 +171,7 @@ function addCorrection(r, type, res) {
   if(type === 'relations') {
     if(validators[type](r)) {
       var rel = {dataset: ds_correct, type: "relations", action: "add", data: r };
-      queue.add(x, function doneCallback(qsize) {
+      queue.add(rel, function doneCallback(qsize) {
         console.log(JSON.stringify(rel))
       });
     } else {
