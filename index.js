@@ -298,7 +298,7 @@ app.put('/datasets/:dataset/:file(pits|relations)',
       } else {
         contents = req.body;
       }
-      
+
       fs.writeFile(uploadedFilename, contents, function(err) {
         if (err) {
           res.status(409).send({
