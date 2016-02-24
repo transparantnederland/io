@@ -58,7 +58,7 @@ function send409(res, type, id) {
 }
 
 app.use("*", function(req,res,next) {
-  console.log("query: " + req.originalUrl);
+  console.log("query: " + req.method + ' ' + req.originalUrl);
   next();
 });
 
